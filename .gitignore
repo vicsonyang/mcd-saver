@@ -1,0 +1,22 @@
+# 环境检查的输出文件，属于本机临时产物，不入库
+probe-results.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 编辑器与系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 凭据兜底：任何真实 Token / 密钥都不允许入库
+*.token
+*.secret
+.env
+.env.*
+!.env.example

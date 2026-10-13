@@ -1,0 +1,295 @@
+{
+  "schema_version": "1",
+  "capabilities": [
+    "自动领券",
+    "查询可用券",
+    "生成候选方案",
+    "最优组合试算",
+    "创建订单",
+    "定时推送",
+    "积分提醒",
+    "环境检查"
+  ],
+  "dependencies": [
+    {
+      "id": "mcd-mcp",
+      "type": "mcp",
+      "required": true,
+      "auth_type": "none",
+      "capabilities": [
+        "自动领券",
+        "查询可用券",
+        "生成候选方案",
+        "最优组合试算",
+        "创建订单",
+        "定时推送",
+        "积分提醒"
+      ],
+      "checks": [
+        {
+          "id": "mcd-mcp-registered",
+          "type": "mcp",
+          "required": true,
+          "server": "mcd-mcp"
+        },
+        {
+          "id": "mcd-mcp-time-probe",
+          "type": "mcp_probe",
+          "required": true,
+          "target": "now-time-info"
+        }
+      ],
+      "setup": {
+        "official_home_url": "https://www.workbuddy.cn/docs/workbuddy/Overview",
+        "official_docs_url": "https://www.workbuddy.cn/docs/workbuddy/Overview",
+        "steps": [
+          "打开 WorkBuddy 聊天窗口左下角的连接器管理页",
+          "在自定义连接器区域找到该连接器并点击信任以启用",
+          "按连接器自身的引导完成麦当劳账号登录与授权",
+          "回到对话重新发起点餐请求"
+        ],
+        "verify": "调用一次 now-time-info，能返回服务器时间即视为可用；该调用为只读，不领券、不下单、不消耗积分",
+        "security": "麦当劳会员授权由连接器侧承载，本 Skill 不接触任何密码、令牌或 Cookie，不要求用户在对话中粘贴凭据，也不保存任何凭据",
+        "rotate_or_revoke": "在连接器管理页移除或取消信任该连接器即断开授权；移除后本 Skill 停止，不降级为猜测数据",
+        "verified_at": "2026-10-13",
+        "applies_to_version": "WorkBuddy 当前版本"
+      },
+      "degradation": [
+        {
+          "capability": "自动领券",
+          "trigger": "领券接口调用失败或返回不可用",
+          "fallback": "跳过自动领券，只用卡包中已有的券继续生成方案",
+          "user_input": "无",
+          "limitations": "可能漏掉本次可领的券，方案标注本次未自动领券",
+          "evidence_label": "部分验证",
+          "recovery": "连接器恢复后重新发起点餐请求，会再次尝试领券",
+          "stop_condition": "跳过领券不影响出方案，流程继续"
+        },
+        {
+          "capability": "查询可用券",
+          "trigger": "门店可用券接口失败或返回空",
+          "fallback": "走无券价最优分支，并提示换渠道或换时段可能更省",
+          "user_input": "无",
+          "limitations": "方案不含券抵扣，节省金额为商品与配送层面优化的結果",
+          "evidence_label": "部分验证",
+          "recovery": "接口恢复后重新算价即可纳入券",
+          "stop_condition": "可用券为零是常态，不得当作异常中断"
+        },
+        {
+          "capability": "生成候选方案",
+          "trigger": "菜单接口失败或菜单为空",
+          "fallback": "停止生成方案，说明当前拿不到菜单",
+          "user_input": "用户可指定门店或改时段再试",
+          "limitations": "不提供任何基于记忆的菜单",
+          "evidence_label": "未验证",
+          "recovery": "菜单接口恢复后重新发起",
+          "stop_condition": "拿不到菜单时必须停止，不得用记忆中的菜品拼方案"
+        },
+        {
+          "capability": "最优组合试算",
+          "trigger": "算价接口全部失败",
+          "fallback": "停止并说明算不出，不输出任何金额",
+          "user_input": "用户可选择稍后重试",
+          "limitations": "不提供任何本地估算价格冒充实付",
+          "evidence_label": "未验证",
+          "recovery": "接口恢复后重新算价",
+          "stop_condition": "算价全部失败即停止输出金额；部分失败时只排序成功组合并标注比对了多少个"
+        },
+        {
+          "capability": "创建订单",
+          "trigger": "建单接口失败",
+          "fallback": "展示已算好的方案与失败原因，不重试超过两次",
+          "user_input": "用户可在 App 或小程序自行下单",
+          "limitations": "订单未创建，方案仍然有效",
+          "evidence_label": "未验证",
+          "recovery": "接口恢复后重新确认即可建单",
+          "stop_condition": "连续失败两次后停止重试，避免重复建单"
+        },
+        {
+          "capability": "定时推送",
+          "trigger": "推送时刻任何必需接口不可用",
+          "fallback": "推送一条算不出的说明，跳过本次推送",
+          "user_input": "用户可回复立即重试",
+          "limitations": "不推基于估算的假价格",
+          "evidence_label": "未验证",
+          "recovery": "下一次推送时刻重新计算",
+          "stop_condition": "连续三天失败则降级为纯文字摘要"
+        },
+        {
+          "capability": "积分提醒",
+          "trigger": "账号接口失败",
+          "fallback": "跳过积分环节，方案中不含积分信息",
+          "user_input": "无",
+          "limitations": "无法提示本月与下月将过期积分",
+          "evidence_label": "未验证",
+          "recovery": "接口恢复后重新拉取账号信息",
+          "stop_condition": "积分环节失败不阻塞出方案"
+        }
+      ]
+    },
+    {
+      "id": "python-runtime",
+      "type": "runtime",
+      "required": false,
+      "auth_type": "none",
+      "capabilities": [
+        "环境检查"
+      ],
+      "checks": [
+        {
+          "id": "python-version",
+          "type": "python",
+          "required": false,
+          "min_version": "3.10"
+        }
+      ],
+      "setup": {
+        "official_home_url": "https://www.workbuddy.cn/docs/workbuddy/Overview",
+        "official_docs_url": "https://www.workbuddy.cn/docs/workbuddy/Overview",
+        "steps": [
+          "确认本机 Python 版本不低于 3.10",
+          "环境检查脚本只使用标准库，无需安装第三方包"
+        ],
+        "verify": "运行 python scripts/check_environment.py 能输出状态 JSON",
+        "security": "脚本只读检查，不修改配置、不登录、不授权、不输出凭据",
+        "verified_at": "2026-10-13",
+        "applies_to_version": "Python 3.10 及以上"
+      },
+      "degradation": [
+        {
+          "capability": "环境检查",
+          "trigger": "Python 不可用或版本低于 3.10",
+          "fallback": "改为人工逐项确认清单：连接器是否已信任、能否返回服务器时间、门店与地址是否可取到",
+          "user_input": "无",
+          "limitations": "检查结果标注为未验证，不提供机器可校验的摘要",
+          "evidence_label": "未验证",
+          "recovery": "安装或切换到 3.10 及以上的 Python 后重新检查",
+          "stop_condition": "核心点餐流程不依赖该脚本，脚本不可用时不阻塞出方案"
+        }
+      ]
+    },
+    {
+      "id": "workbuddy-automation",
+      "type": "local-tool",
+      "required": false,
+      "auth_type": "none",
+      "capabilities": [
+        "定时推送"
+      ],
+      "checks": [
+        {
+          "id": "workbuddy-home-exists",
+          "type": "file",
+          "required": false,
+          "path": "~/.workbuddy"
+        }
+      ],
+      "setup": {
+        "official_home_url": "https://www.workbuddy.cn/docs/workbuddy/Overview",
+        "official_docs_url": "https://www.workbuddy.cn/docs/workbuddy/Overview",
+        "steps": [
+          "确认宿主提供自动化能力",
+          "创建自动化任务时填入推送时间与指令"
+        ],
+        "verify": "到设定时间能收到一次推送",
+        "security": "推送只给回复式入口，绝不自动下单",
+        "verified_at": "2026-10-13",
+        "applies_to_version": "WorkBuddy 当前版本"
+      },
+      "degradation": [
+        {
+          "capability": "定时推送",
+          "trigger": "宿主不支持自动化或任务未创建",
+          "fallback": "改为用户手动发起，不谎称已配置定时推送",
+          "user_input": "用户主动提出要每天推送时才创建任务",
+          "limitations": "没有定时能力，只在用户发起时给出方案",
+          "evidence_label": "未验证",
+          "recovery": "宿主支持后创建自动化任务即可启用",
+          "stop_condition": "未创建任务时不宣称已开启每日推送"
+        }
+      ]
+    }
+  ],
+  "functional_degradations": [
+    {
+      "capability": "自动领券",
+      "trigger": "用户拒绝授权，或领券结果无法判定",
+      "fallback": "跳过领券，只用已有券出方案，并说明本次未自动领券",
+      "user_input": "是否授权自动领券",
+      "limitations": "可能错过本次可领的券",
+      "evidence_label": "部分验证",
+      "recovery": "用户改口授权后写入档案，此后自动执行",
+      "stop_condition": "拒绝授权不阻塞出方案"
+    },
+    {
+      "capability": "查询可用券",
+      "trigger": "该门店此刻可用券为零，或券文本无法解析",
+      "fallback": "以门店可用券接口结果为准，走无券价最优分支",
+      "user_input": "无",
+      "limitations": "方案不含券抵扣",
+      "evidence_label": "部分验证",
+      "recovery": "换渠道或换时段可能有可用券，提示用户",
+      "stop_condition": "零可用券是常态，不得中断"
+    },
+    {
+      "capability": "生成候选方案",
+      "trigger": "偏好、预算全缺且常点清单为空",
+      "fallback": "用户没说人数时按一人一份主食的缺省档生成候选；人数不读档案",
+      "user_input": "人数、预算、忌口、偏好，任选",
+      "limitations": "人数按一人处理时，非单人需求会错，须在方案末尾提示该假设",
+      "evidence_label": "推断",
+      "recovery": "用户提供人数或任一参数后重新生成",
+      "stop_condition": "追问不超过两轮，超出即按缺省档执行并标注假设"
+    },
+    {
+      "capability": "最优组合试算",
+      "trigger": "算价调用预算耗尽，或部分组合算价失败",
+      "fallback": "只在成功组合里排序，并标注本次比对了 N 分之 M 个组合",
+      "user_input": "无",
+      "limitations": "可能不是全局最优，标注为部分验证",
+      "evidence_label": "部分验证",
+      "recovery": "重新发起可获得完整预算",
+      "stop_condition": "全部失败时停止，不输出任何金额"
+    },
+    {
+      "capability": "创建订单",
+      "trigger": "接口未返回支付链接",
+      "fallback": "输出订单号与在 App 或小程序完成支付的入口",
+      "user_input": "无",
+      "limitations": "不能直接给出可点击的支付链接",
+      "evidence_label": "部分验证",
+      "recovery": "接口后续返回链接时直接展示",
+      "stop_condition": "绝不拼造 URL"
+    },
+    {
+      "capability": "定时推送",
+      "trigger": "连续三天无响应",
+      "fallback": "降级为纯文字摘要，减少算价调用",
+      "user_input": "是否退订",
+      "limitations": "不再给出完整明细卡",
+      "evidence_label": "部分验证",
+      "recovery": "用户回复序号即恢复完整方案",
+      "stop_condition": "连续七天无响应则提示是否退订"
+    },
+    {
+      "capability": "积分提醒",
+      "trigger": "可用积分不足以兑换任何在售商品",
+      "fallback": "跳过兑换，改为提醒本月与下月将过期积分",
+      "user_input": "无",
+      "limitations": "本单不使用积分",
+      "evidence_label": "部分验证",
+      "recovery": "积分充足后自动启用兑换路径",
+      "stop_condition": "积分不足不阻塞出方案"
+    },
+    {
+      "capability": "环境检查",
+      "trigger": "检查脚本不可用或配置清单无法解析",
+      "fallback": "改为人工逐项确认清单",
+      "user_input": "无",
+      "limitations": "检查结果标注为未验证",
+      "evidence_label": "未验证",
+      "recovery": "修复脚本或清单后重新检查",
+      "stop_condition": "检查不可用时不阻塞核心流程，但所有结论需标注未验证"
+    }
+  ]
+}
