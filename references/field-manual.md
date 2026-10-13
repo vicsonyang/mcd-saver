@@ -22,28 +22,28 @@ usedPoint                 已用积分
 
 ## 二、门店与地址
 
-### 判定顺序：问渠道 → 问门店/地址
+### 判定顺序：问渠道 + 门店（一次问完）
 
-门店与渠道靠**问用户**确定，本 Skill **不使用系统级定位**（不调 CoreLocation、不调 PowerShell Geolocator）。顺序固定：
+门店与渠道靠**问用户**确定，本 Skill **不使用系统级定位**（不调 CoreLocation、不调 PowerShell Geolocator）。顺序与形态：
 
 ```
-1. 第一问 · 渠道（永远排在最前，门店之前）
-   到店自取 还是 麦乐送
-2. 第二问 · 按渠道分叉
-   到店自取 → 想去哪家麦当劳（门店名或大致地址）
-   麦乐送   → 送到哪个地址
+1. 首轮提问 · 渠道与门店一起问（同一条消息）
+   「这次是到店自取，还是麦乐送？顺便告诉我门店名或大致地址」
+2. 用户答得不全 → 只补缺的那一项
+   到店自取 → 缺门店就问门店名或大致地址
+   麦乐送   → 缺地址就问送到哪个地址
 3. 用户答得模糊 → 搜附近门店，摆出前几家让用户选一次
 4. 用户明确不愿提供 → 档案默认值（最后手段，且必须标注未经核对）
 ```
 
 用户已在本次话里明说渠道或门店时，对应的问题跳过，不重复问。
 
-### 渠道与第二问的对应
+### 渠道与门店的解答分叉
 
-| 渠道 | 第二问 | 用户给模糊地址时 |
+| 渠道 | 门店/地址处理 | 用户给模糊地址时 |
 |---|---|---|
-| 到店自取 | 想去哪家麦当劳？门店名或大致地址都行 | `query-nearby-stores(searchType=2, beType=1, keyword=地址, city=城市)` 搜附近门店 |
-| 麦乐送 | 送到哪个地址？ | `delivery-query-addresses` 取 `addressId` → `delivery-query-stores(beType=2, addressId)` |
+| 到店自取 | `query-nearby-stores(searchType=2, beType=1, keyword=门店名, city=城市)` 核实或搜附近门店 | 摆出前几家让用户选 |
+| 麦乐送 | `delivery-query-addresses` 取 `addressId` → `delivery-query-stores(beType=2, addressId)` | 匹配不到地址就问用户确认 |
 
 `query-nearby-stores`：`beType` 与 `searchType` 必填。`searchType=1` 搜收藏餐厅（默认），`searchType=2` 按位置/关键词搜索（此时 `city` 与 `keyword` 必填）。`beType=1` 到店自提返回的门店无 `beCode`；`beType=5` 得来速返回 `beCode`，后续必须传。收藏餐厅为空时返回 `code=600050`，必须走 `searchType=2` 地址搜索兜底，不能当作致命错误。
 

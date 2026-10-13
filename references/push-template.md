@@ -16,7 +16,8 @@ plan.price / originalPrice / discount   实付、原价、优惠
 plan.feeBreakdown                配送费、打包费、餐具费、商品费四项拆解
 plan.items[] / plan.coupons[]    商品清单；券名加有效期加时段
 plan.pointsUsed / evidenceLabel  积分消耗；证据标签
-expiringSoon[]                   三天内到期券，以及本月将过期积分提醒
+expiringSoon[]                   三天内到期券（含三态与面值合计）、今天到期的券，
+                                 以及本月将过期积分提醒
 nextAction / optOutHint          行动指令必须为确认式；退订说明
 ```
 
