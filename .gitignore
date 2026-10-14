@@ -1,6 +1,9 @@
 # 环境检查的输出文件，属于本机临时产物，不入库
 probe-results.json
 
+# 本机推送脚本，仅在你自己的电脑上使用，不入库
+push-update.bat
+
 # Python
 __pycache__/
 *.py[cod]
